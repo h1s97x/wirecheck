@@ -10,7 +10,7 @@ use std::time::Duration;
 
 pub const SCHEMA_VERSION: u16 = 1;
 
-/// Built-in probe kinds. M0 declares them; implementations land in M1.
+/// Built-in probe kinds. All eight are implemented as of M3.
 pub const PROBE_KINDS: &[&str] = &[
     "dns",
     "http",

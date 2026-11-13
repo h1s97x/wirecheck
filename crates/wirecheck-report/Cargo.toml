@@ -4,6 +4,10 @@
 [package]
 name = "wirecheck-report"
 description = "Report types and evidence redaction for wirecheck"
+repository = "https://github.com/h1s97x/wirecheck"
+readme = "../../README.md"
+keywords = ["network", "reporting", "redaction"]
+categories = ["network-programming"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

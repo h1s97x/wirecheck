@@ -399,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn all_m2_formats_are_written() {
+    fn all_report_formats_are_written() {
         let directory =
             std::env::temp_dir().join(format!("wirecheck-render-{}-{}", std::process::id(), "m2"));
         let written = write_reports(

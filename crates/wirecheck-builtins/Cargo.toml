@@ -4,6 +4,10 @@
 [package]
 name = "wirecheck-builtins"
 description = "Registry of built-in probe kinds and closed remediation actions"
+repository = "https://github.com/h1s97x/wirecheck"
+readme = "../../README.md"
+keywords = ["network", "diagnostics", "probes"]
+categories = ["network-programming"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

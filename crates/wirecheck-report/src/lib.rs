@@ -18,8 +18,8 @@ pub enum SensitiveKind {
     Other,
 }
 
-/// M0 classifies evidence by field-name hints. M1 replaces this with explicit
-/// sensitivity tags in the rule-set schema.
+/// Evidence is classified by field-name hints. Explicit sensitivity tags in
+/// the rule-set schema are still future work (see `SPEC.md` §10).
 pub fn classify(key: &str) -> SensitiveKind {
     let lower = key.to_ascii_lowercase();
     if lower.contains("mac") {

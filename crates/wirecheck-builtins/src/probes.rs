@@ -226,7 +226,9 @@ fn http(with: &BTreeMap<String, toml::Value>, context: &RunContext) -> Observati
         None => return Observation::failed("http probe needs `with.url`"),
     };
     if url.starts_with("https://") {
-        return Observation::failed("https is not supported by the M1 std-only HTTP probe");
+        return Observation::failed(
+            "https is not supported by the std-only HTTP probe (plaintext only)",
+        );
     }
     let rest = url.strip_prefix("http://").unwrap_or(&url);
     let (authority, path) = match rest.find('/') {

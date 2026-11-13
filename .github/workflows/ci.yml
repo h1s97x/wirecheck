@@ -51,6 +51,7 @@ jobs:
           cargo run -p wirecheck-cli -- validate --rules ./reports/starter.rules.toml
           cargo run -p wirecheck-cli -- trust --rules ./reports/starter.rules.toml
           cargo run -p wirecheck-cli -- run --rules ./reports/starter.rules.toml --trust --output-dir ./reports --format json
+          cargo run -p wirecheck-core --example embed
 
   licenses:
     name: dependency licenses

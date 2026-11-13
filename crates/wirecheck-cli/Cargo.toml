@@ -4,6 +4,10 @@
 [package]
 name = "wirecheck-cli"
 description = "Command-line interface for wirecheck"
+repository = "https://github.com/h1s97x/wirecheck"
+readme = "../../README.md"
+keywords = ["network", "diagnostics", "cli"]
+categories = ["command-line-utilities"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

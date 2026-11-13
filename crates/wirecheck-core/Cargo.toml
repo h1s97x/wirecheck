@@ -4,6 +4,10 @@
 [package]
 name = "wirecheck-core"
 description = "Rule-set schema, core types and static validation for wirecheck"
+repository = "https://github.com/h1s97x/wirecheck"
+readme = "../../README.md"
+keywords = ["network", "diagnostics", "validation"]
+categories = ["network-programming"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

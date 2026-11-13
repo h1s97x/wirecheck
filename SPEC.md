@@ -34,6 +34,9 @@ without leaking local network details.
 - Built-in addresses belonging to any particular organisation.
 - Dynamic plugins, WASM, or user-supplied executables.
 - Executing arbitrary shell commands described in a rule set.
+- Mutating the host's network configuration from a rule set (no platform
+  adapter ships), privilege escalation, and publisher-identity signatures.
+  See §15 for the reconciliation of the M2/M3 acceptance wording.
 - Telemetry or automatic upload of results. A `Sink` trait is reserved for a
   possible future opt-in service.
 
@@ -140,8 +143,8 @@ may rely on `schema_version` being stable within a major release.
 | --- | --- | --- |
 | M0 | Governance files, schema types, static validator, CLI skeleton, CI | `cargo test` green; `wirecheck validate` reports every invalid action ID in one pass; `cargo deny check` passes. |
 | M1 / v0.1 | dns / http / icmp probes, concurrent runner, JSON + HTML reports, redaction, exit codes | Three-platform CI green; a shareable single-file HTML report is produced; still read-only. |
-| M2 / v0.2 | dependency ordering, variable substitution, SARIF, plan, 2–3 closed actions | `--apply --yes` executes and rolls back with complete audit records. |
-| M3 / v0.3 | elevation, rule-set signing/`--trust`, full probe set, documentation | A new user can configure their own environment within ten minutes. |
+| M2 / v0.2 | dependency ordering, variable substitution, SARIF, plan, closed action registry | Dry-run plan, complete audit records and rollback orchestration with an injectable executor; see §15. |
+| M3 / v0.3 | full probe set, starter template, local rule-set trust, elevation guard | `wirecheck init` produces a rule set that passes `validate`; see §15. |
 | v1.0 | Frozen report schema, semver commitment, crates.io release | usable as a library dependency. |
 
 ## 9. Record of independent authorship
@@ -241,3 +244,51 @@ Dated design decisions:
 - If a real front end is required, that is a scope change: either a separate
   web application consuming `report.json`, or a desktop UI. Both need a new
   design decision before implementation.
+
+## 15. Scope reconciliation (2026-11-14)
+
+The M2/M3 rows in §8 originally described full remediation execution,
+privilege elevation and publisher signing. The shipped implementation does
+**not** do those things, and that is now the accepted scope, not a pending
+bug:
+
+- `--apply --yes` produces a complete `AuditRecord` (the plan, every result
+  and every rollback result). The default `DisabledExecutor` refuses every
+  host change; `RecordingExecutor` verifies apply/rollback in tests. A real
+  platform adapter is out of scope for v0.x.
+- Elevation is a central guard that refuses privileged actions with a clear
+  error. No privilege escalation is performed.
+- `--trust` is a local SHA-256 allow-list of reviewed rule-set fingerprints.
+  It detects modification, not publisher identity; no asymmetric signing or
+  key management ships.
+- §1 is amended accordingly. v1.0 therefore does **not** promise real
+  remediation. Changing this scope requires a dated decision here first.
+
+## 16. v1.0 release preparation (2026-11-14)
+
+- Report schema: `SCHEMA_VERSION` and `REPORT_SCHEMA_VERSION` are independent.
+  Within a major release, `Report.schema_version` and all `Finding` field
+  names and types are stable. Adding a field is a minor change; renaming,
+  removing or retyping one bumps `REPORT_SCHEMA_VERSION` and requires a
+  migration note in `CHANGELOG.md`. Rule-set schema changes bump
+  `SCHEMA_VERSION` and require a migration note too.
+- Semver commitment: from v1.0, the public API is the set of `pub` items in
+  `wirecheck-core` (`model`, `rules`, `observation`, `runner`, `plan`,
+  `validate`), `wirecheck-builtins` (registry and `ActionExecutor`
+  implementations), `wirecheck-report` (`render` and redaction helpers), and
+  the CLI's documented subcommands and exit codes. Breaking changes require a
+  major version bump.
+- Library usability is verified by
+  `cargo run -p wirecheck-core --example embed`, which parses and validates a
+  rule set without the CLI or any network access.
+- Release artifacts: `CHANGELOG.md`, package metadata (`repository`,
+  `readme`, `keywords`, `categories`), `cargo package --list` and
+  `cargo publish --dry-run`. Publishing itself, version tags and crates.io
+  credentials are maintainer actions at release time.
+- The declared MSRV was corrected from 1.75 to **1.85** after inspecting the
+  dependency chain (`clap` / `indexmap` / `hashbrown` declare 1.85). It has
+  not yet been compiled on a 1.85 toolchain (this machine runs 1.100);
+  re-check with `cargo +1.85.0 test --workspace` before tagging v1.0.
+- The `1.0.0`–`1.0.5` tags belong to the legacy C# project, not this
+  codebase. They must not be read as wirecheck releases; decide whether to
+  delete or rename them before publishing.

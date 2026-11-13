@@ -7,10 +7,10 @@ what to observe, what counts as a failure, and which remediation to suggest. The
 output is a structured report you can read in a terminal, feed to CI, or attach
 to a support request without leaking your local network details.
 
-> Status: **M3 — full probe set, starter templates and rule-set trust.**
+> Status: **v0.3 / M3, scope reconciled; preparing v1.0.**
 > `validate` stays offline; `run` performs network observations. Remediation
-> plans are dry-run by default and no host-mutating adapter ships yet. See
-> `SPEC.md` for the design and the roadmap.
+> plans are dry-run by default and no host-mutating adapter ships. See
+> `SPEC.md` §15 for the accepted scope and §16 for release preparation.
 
 ## Why
 
