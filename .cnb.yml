@@ -1,0 +1,38 @@
+# 推送到 main 后，用官方 tencentcom/git-sync 插件把本仓同步到 GitHub 同名仓库。
+# 凭据（GITHUB_USERNAME / GITHUB_TOKEN）存放在密钥仓库 secret-env，通过 imports 引用。
+# sync_mode: rebase 保留 GitHub 侧平台文件，避免无条件 force 覆盖远端新提交。
+# 插件文档：https://cnb.cool/cnb/plugins/tencentcom/git-sync
+
+main:
+  push:
+    - name: sync-to-github
+      imports:
+        - https://cnb.cool/h1s97x/secret-env/-/blob/main/env.yml
+      stages:
+        - name: sync to github
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/h1s97x/wirecheck.git
+            auth_type: https
+            username: ${GITHUB_USERNAME}
+            password: ${GITHUB_TOKEN}
+            branch: main
+            push_tags: true
+            sync_mode: rebase
+
+# 仓库级事件：手动补跑一次同步，按钮见 .cnb/web_trigger.yml
+$:
+  web_trigger_sync_to_github:
+    - name: sync-to-github-manual
+      imports:
+        - https://cnb.cool/h1s97x/secret-env/-/blob/main/env.yml
+      stages:
+        - name: sync to github
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/h1s97x/wirecheck.git
+            auth_type: https
+            username: ${GITHUB_USERNAME}
+            password: ${GITHUB_TOKEN}
+            branch: main
+            push_tags: true

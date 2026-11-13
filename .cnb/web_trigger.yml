@@ -1,0 +1,8 @@
+branch:
+  - reg: .*
+    buttons:
+      - name: 同步到 GitHub
+        description: 把当前 main 重新同步到 GitHub 同名仓库
+        event: web_trigger_sync_to_github
+        permissions:
+          roles: [owner, master, developer]
