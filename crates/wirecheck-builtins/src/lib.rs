@@ -2,8 +2,7 @@
 // Copyright (c) 2026 h1s97x
 
 //! Registry metadata for the closed set of probe kinds and remediation
-//! actions. M1 implements dns / http / icmp / tcp; the other kinds stay
-//! planned.
+//! actions. M3 implements every registered probe kind.
 //!
 //! The important property is that this registry is compiled in. A rule set can
 //! only reference an ID that exists here, so an untrusted rule set can never
@@ -39,7 +38,7 @@ pub fn probe_descriptors() -> Vec<ProbeDescriptor> {
         .map(|id| ProbeDescriptor {
             id,
             summary: probe_summary(id),
-            implemented: matches!(id, "dns" | "http" | "icmp" | "tcp"),
+            implemented: PROBE_KINDS.contains(&id),
             requires_elevation: matches!(id, "interface" | "traceroute"),
         })
         .collect()
@@ -117,13 +116,8 @@ mod tests {
     }
 
     #[test]
-    fn m1_implements_four_probe_kinds() {
-        let implemented: Vec<&str> = probe_descriptors()
-            .iter()
-            .filter(|probe| probe.implemented)
-            .map(|probe| probe.id)
-            .collect();
-        assert_eq!(implemented, vec!["dns", "http", "icmp", "tcp"]);
-        assert!(probe_descriptors().iter().any(|probe| !probe.implemented));
+    fn m3_implements_every_registered_probe_kind() {
+        assert_eq!(probe_descriptors().len(), 8);
+        assert!(probe_descriptors().iter().all(|probe| probe.implemented));
     }
 }

@@ -7,7 +7,7 @@ what to observe, what counts as a failure, and which remediation to suggest. The
 output is a structured report you can read in a terminal, feed to CI, or attach
 to a support request without leaking your local network details.
 
-> Status: **M2 — SARIF reports, dry-run plans and audited apply/rollback.**
+> Status: **M3 — full probe set, starter templates and rule-set trust.**
 > `validate` stays offline; `run` performs network observations. Remediation
 > plans are dry-run by default and no host-mutating adapter ships yet. See
 > `SPEC.md` for the design and the roadmap.
@@ -28,14 +28,13 @@ cargo test --workspace
 # optional: install the `wirecheck` binary into ~/.cargo/bin
 cargo install --path crates/wirecheck-cli
 
-# statically validate a rule set (never touches the network)
-cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml
+# generate a commented starter rule set, then review and trust it
+cargo run -p wirecheck-cli -- init --output wirecheck.rules.toml
+cargo run -p wirecheck-cli -- validate --rules wirecheck.rules.toml
+cargo run -p wirecheck-cli -- trust --rules wirecheck.rules.toml
 
-# machine-readable diagnostics for CI
-cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml --json
-
-# execute a rule set; prints a dry-run plan, writes reports to ./reports
-cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --stdout
+# execute a rule set; --trust verifies its SHA-256 fingerprint
+cargo run -p wirecheck-cli -- run --rules wirecheck.rules.toml --trust --stdout
 
 # SARIF 2.1.0 for code scanning
 cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --format sarif
@@ -49,18 +48,20 @@ wirecheck explain proxy.set
 
 `validate` exits `0` when the rule set is valid and `2` when it is not; it
 reports **all** problems in one pass. `run` exits `0` (all clear), `1` (a
-`fail`/`error` finding) or `2` (invalid rule set or configuration error).
-Reports are written to `[reports].output_dir` (`--output-dir` overrides it);
-`--format json|html|sarif` overrides the formats, `--stdout` also prints JSON.
+`fail`/`error` finding) or `2` (invalid rule set, untrusted rule set or
+configuration error). Reports are written to `[reports].output_dir`
+(`--output-dir` overrides it); `--format json|html|sarif` overrides the
+formats, `--stdout` also prints JSON.
 
-M2 is safe by default: `run` prints a dry-run plan. `--apply --yes` walks the
-plan and writes `audit.json` (plan, results and rollback results), but the
-shipped `DisabledExecutor` refuses every host change — a platform adapter must
-be supplied explicitly. Actions with `needs_confirm = true` additionally
-require an interactive TTY.
+M3 adds the last four probe kinds, a starter template (`init`), a local
+SHA-256 trust store (`trust` / `run --trust`) and a central elevation check.
+The trust store is an allow-list of reviewed fingerprints, not an asymmetric
+signature scheme; `.wirecheck/` is gitignored.
 
-M1 limitations that still apply: HTTP is plaintext only and ICMP uses the
-system `ping` / TCP degradation chain. See `SPEC.md` §11–§12.
+Safety defaults still hold: `run` prints a dry-run plan; `--apply --yes`
+writes `audit.json` but `DisabledExecutor` refuses every host change, and
+privileged actions are refused outright. HTTP is plaintext only and ICMP /
+traceroute use system command fallbacks. See `SPEC.md` §11–§13.
 
 ## A rule set
 

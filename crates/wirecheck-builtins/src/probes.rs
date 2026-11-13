@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 h1s97x
 
-//! Built-in probe implementations for M1.
+//! Built-in probe implementations for M1–M3.
 //!
-//! M1 deliberately uses only the standard library: no async runtime, no TLS
-//! stack and no raw-socket crate. HTTP is therefore plaintext only, and ICMP
-//! starts at the system `ping` fallback (see `SPEC.md` §11).
+//! Only the standard library is used: no async runtime, no TLS stack and no
+//! raw-socket crate. HTTP is therefore plaintext only, and ICMP / traceroute
+//! use system commands with explicit degradation (see `SPEC.md` §11, §13).
 
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
@@ -26,9 +26,11 @@ impl ProbeExecutor for BuiltinProbes {
             "http" => http(&spec.with, context),
             "icmp" => icmp(&spec.with, context),
             "tcp" => tcp(&spec.with, context),
-            other => Observation::failed(format!(
-                "probe kind `{other}` is planned for a later milestone"
-            )),
+            "proxy" => proxy(&spec.with, context),
+            "interface" => interface(&spec.with, context),
+            "traceroute" => traceroute(&spec.with, context),
+            "captive_portal" => captive_portal(&spec.with, context),
+            other => Observation::failed(format!("unknown probe kind `{other}`")),
         };
         observation.elapsed_ms = started.elapsed().as_millis() as u64;
         observation
@@ -347,6 +349,171 @@ fn tcp(with: &BTreeMap<String, toml::Value>, context: &RunContext) -> Observatio
         .with("status", if reachable { "connected" } else { "refused" })
         .with("host", host)
         .with("port", port.to_string())
+}
+
+fn proxy(_with: &BTreeMap<String, toml::Value>, _context: &RunContext) -> Observation {
+    // Only the presence of a proxy setting is recorded; values can contain
+    // credentials and are never put into evidence.
+    let enabled = [
+        "http_proxy",
+        "HTTP_PROXY",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ]
+    .iter()
+    .any(|key| {
+        std::env::var(key)
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false)
+    });
+    Observation::observed()
+        .with("status", "ok")
+        .with("enabled", enabled.to_string())
+        .with("source", "environment")
+}
+
+fn interface(_with: &BTreeMap<String, toml::Value>, _context: &RunContext) -> Observation {
+    // Connecting a UDP socket sends no packet; the OS only selects the local
+    // address used for that route. This works on all three CI platforms.
+    let socket = match UdpSocket::bind("0.0.0.0:0") {
+        Ok(socket) => socket,
+        Err(error) => {
+            return Observation::failed(format!("cannot inspect local interface: {error}"))
+        }
+    };
+    if let Err(error) = socket.connect("192.0.2.1:80") {
+        return Observation::failed(format!("cannot determine local address: {error}"));
+    }
+    match socket.local_addr() {
+        Ok(address) => Observation::observed()
+            .with("status", "ok")
+            .with("local_ip", address.ip().to_string())
+            .with("address_count", "1"),
+        Err(error) => Observation::failed(format!("cannot read local address: {error}")),
+    }
+}
+
+fn traceroute(with: &BTreeMap<String, toml::Value>, context: &RunContext) -> Observation {
+    let target = string(with, "target").unwrap_or_else(|| "example.com".to_string());
+    let program = if cfg!(windows) {
+        "tracert"
+    } else {
+        "traceroute"
+    };
+    let mut command = Command::new(program);
+    if cfg!(windows) {
+        command
+            .arg("-h")
+            .arg("8")
+            .arg("-w")
+            .arg(context.timeout.as_millis().max(1000).to_string());
+    } else {
+        command.arg("-m").arg("8").arg("-w").arg("1").arg("-n");
+    }
+    match command.arg(&target).output() {
+        Ok(output) if output.status.success() => {
+            let text = String::from_utf8_lossy(&output.stdout);
+            let hops = text
+                .lines()
+                .filter(|line| {
+                    line.trim_start()
+                        .chars()
+                        .next()
+                        .is_some_and(|character| character.is_ascii_digit())
+                })
+                .count();
+            Observation::observed()
+                .using(ProbeMethod::SystemFallback)
+                .with("status", "ok")
+                .with("hop_count", hops.to_string())
+                .with("target", target)
+                .with("method", "system_traceroute")
+        }
+        Ok(output) => Observation::failed(format!("{program} exited with {}", output.status)),
+        Err(error) => Observation::failed(format!("{program} unavailable: {error}")),
+    }
+}
+
+fn captive_portal(with: &BTreeMap<String, toml::Value>, context: &RunContext) -> Observation {
+    let mut params = with.clone();
+    if !params.contains_key("url") {
+        params.insert(
+            "url".to_string(),
+            toml::Value::String("http://example.com/".to_string()),
+        );
+    }
+    let observation = http(&params, context);
+    if let Some(error) = &observation.error {
+        return Observation::failed(error.clone());
+    }
+    let status = observation
+        .fields
+        .get("status")
+        .cloned()
+        .unwrap_or_default();
+    let body = observation
+        .fields
+        .get("body")
+        .cloned()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let redirected = matches!(status.as_str(), "301" | "302" | "303" | "307" | "308");
+    let login_page = body.contains("login") || body.contains("captive") || body.contains("sign in");
+    let detected = redirected || login_page;
+    Observation::observed()
+        .with("status", "ok")
+        .with("portal_detected", detected.to_string())
+        .with("http_status", status)
+        .with("method", "http_probe")
+}
+
+#[cfg(test)]
+mod m3_tests {
+    use super::*;
+
+    fn context() -> RunContext {
+        RunContext {
+            timeout: Duration::from_millis(300),
+            retries: 0,
+            concurrency: 1,
+        }
+    }
+
+    #[test]
+    fn proxy_probe_reports_a_boolean_without_leaking_values() {
+        let observation = proxy(&BTreeMap::new(), &context());
+        assert_eq!(observation.fields["status"], "ok");
+        assert!(matches!(
+            observation.fields["enabled"].as_str(),
+            "true" | "false"
+        ));
+        assert!(observation
+            .fields
+            .values()
+            .all(|value| !value.contains("://")));
+    }
+
+    #[test]
+    fn interface_probe_reports_a_local_address_or_a_clear_error() {
+        let observation = interface(&BTreeMap::new(), &context());
+        match &observation.error {
+            Some(error) => assert!(error.starts_with("cannot")),
+            None => assert!(observation.fields.contains_key("local_ip")),
+        }
+    }
+
+    #[test]
+    fn captive_portal_does_not_fabricate_a_detection_on_failure() {
+        let mut with = BTreeMap::new();
+        with.insert(
+            "url".to_string(),
+            toml::Value::String("http://127.0.0.1:1/".to_string()),
+        );
+        let observation = captive_portal(&with, &context());
+        assert!(observation.error.is_some());
+    }
 }
 
 #[cfg(test)]

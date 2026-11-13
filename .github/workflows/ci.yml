@@ -45,6 +45,13 @@ jobs:
       - name: Smoke test - offline run writes JSON, HTML and SARIF reports
         run: cargo run -p wirecheck-cli -- run --rules rules/offline.rules.toml --output-dir ./reports --format json --format html --format sarif
 
+      - name: Smoke test - init, trust and trusted run
+        run: |
+          cargo run -p wirecheck-cli -- init --output ./reports/starter.rules.toml
+          cargo run -p wirecheck-cli -- validate --rules ./reports/starter.rules.toml
+          cargo run -p wirecheck-cli -- trust --rules ./reports/starter.rules.toml
+          cargo run -p wirecheck-cli -- run --rules ./reports/starter.rules.toml --trust --output-dir ./reports --format json
+
   licenses:
     name: dependency licenses
     runs-on: ubuntu-latest

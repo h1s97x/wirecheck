@@ -1,8 +1,9 @@
 # wirecheck — Design Specification
 
-- Status: M2 (SARIF, dry-run plans, audited apply/rollback), 2026-11-14;
-  M1 (probes, concurrent runner, JSON/HTML reports) and M0 (schema + static
-  validation) both dated 2026-11-13/14
+- Status: M3 (full probe set, starter template, rule-set trust), 2026-11-14;
+  M2 (SARIF, dry-run plans, audited apply/rollback), M1 (probes, concurrent
+  runner, JSON/HTML reports) and M0 (schema + static validation) dated
+  2026-11-13/14
 - License: MIT, single copyright holder
 - Document purpose: normative description of the design, and a dated record of
   independent authorship.
@@ -204,3 +205,26 @@ Dated design decisions:
   apply/rollback/audit path in tests. Supplying a platform-specific
   `ActionExecutor` is the remaining step before real remediation.
 - Elevation, rule-set signing / `--trust` and the full probe set remain M3.
+
+## 13. M3 implementation notes (2026-11-14)
+
+- All eight registered probe kinds are implemented. `proxy` reads only
+  environment variables and never records values (they may contain
+  credentials). `interface` uses a connected UDP socket to discover the local
+  address without sending a packet. `traceroute` delegates to the system
+  `traceroute` / `tracert` and reports an explicit error when unavailable.
+  `captive_portal` reuses the plaintext HTTP probe and reports redirect or
+  login-page heuristics; it never fabricates a detection when the request
+  fails.
+- `wirecheck init` writes a commented starter rule set that passes
+  `validate`; this is the "configure within ten minutes" acceptance path.
+- `wirecheck trust` registers a rule set's SHA-256 fingerprint in
+  `.wirecheck/trusted.txt` (gitignored); `run --trust` refuses an unknown or
+  modified rule set. This is a local allow-list, **not** asymmetric signing:
+  publisher identity verification still needs a key-management design.
+- Elevation is handled centrally in the CLI: a planned action marked
+  `requires_elevation` is refused with an explicit error rather than silently
+  attempting a privileged system change. `DisabledExecutor` remains the
+  default, so M3 still ships no host-mutating adapter.
+- Remaining v1.0 work: frozen report schema, semver commitment, crates.io
+  release and a real signing scheme if publisher verification is required.
