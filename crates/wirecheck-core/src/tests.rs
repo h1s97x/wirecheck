@@ -15,7 +15,11 @@ fn example_rule_sets_are_valid() {
     for text in [HOME, CI_RULES] {
         let rules = RuleSet::from_toml(text).expect("example rule set must parse");
         let report = validate(&rules);
-        assert!(report.is_ok(), "unexpected diagnostics: {:?}", report.diagnostics);
+        assert!(
+            report.is_ok(),
+            "unexpected diagnostics: {:?}",
+            report.diagnostics
+        );
         assert!(report.probe_count > 0);
     }
 }
@@ -77,10 +81,11 @@ action = "also.unknown"
     let report = validate(&rules);
     let codes: BTreeSet<&str> = report.diagnostics.iter().map(|d| d.code.as_str()).collect();
 
-    for expected in [
-        "E006", "E007", "E008", "E012", "E013", "E014", "E015",
-    ] {
-        assert!(codes.contains(expected), "missing diagnostic {expected}: {codes:?}");
+    for expected in ["E006", "E007", "E008", "E012", "E013", "E014", "E015"] {
+        assert!(
+            codes.contains(expected),
+            "missing diagnostic {expected}: {codes:?}"
+        );
     }
     assert!(!report.is_ok());
     assert_eq!(report.exit_code(), 2);

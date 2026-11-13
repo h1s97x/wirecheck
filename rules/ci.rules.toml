@@ -21,7 +21,7 @@ mac = "mask"
 resolver = "192.0.2.53"
 
 [reports]
-formats = ["json", "sarif"]
+formats = ["json", "html"]
 output_dir = "./reports"
 
 [[probes]]
@@ -34,21 +34,22 @@ server = "{{ vars.resolver }}"
 query = "example.com"
 record = "A"
 
+# Plaintext only in M1; TLS is a later milestone (see SPEC.md §11).
 [[probes]]
-id = "registry_https"
+id = "registry_http"
 type = "http"
 depends_on = ["registry_dns"]
 expect = { status = 200 }
 
 [probes.with]
-url = "https://example.com/health"
+url = "http://example.com/health"
 method = "GET"
 
 [[probes]]
 id = "egress_tcp"
 type = "tcp"
 depends_on = ["registry_dns"]
-expect = { connected = true }
+expect = { status = "connected" }
 
 [probes.with]
 host = "example.com"

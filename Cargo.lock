@@ -427,6 +427,7 @@ dependencies = [
 name = "wirecheck-builtins"
 version = "0.1.0"
 dependencies = [
+ "toml",
  "wirecheck-core",
 ]
 
@@ -439,6 +440,7 @@ dependencies = [
  "serde_json",
  "wirecheck-builtins",
  "wirecheck-core",
+ "wirecheck-report",
 ]
 
 [[package]]
@@ -454,6 +456,7 @@ dependencies = [
 name = "wirecheck-report"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "sha2",
  "wirecheck-core",
 ]

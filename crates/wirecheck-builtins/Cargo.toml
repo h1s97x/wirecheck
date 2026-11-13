@@ -12,3 +12,4 @@ authors.workspace = true
 
 [dependencies]
 wirecheck-core.workspace = true
+toml.workspace = true

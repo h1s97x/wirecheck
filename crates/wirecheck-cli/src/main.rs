@@ -4,8 +4,9 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
-use wirecheck_builtins::{action_descriptors, find_action, probe_descriptors};
-use wirecheck_core::{validate, RuleSet, Severity};
+use wirecheck_builtins::{action_descriptors, find_action, probe_descriptors, BuiltinProbes};
+use wirecheck_core::{validate, Outcome, RuleSet, Severity};
+use wirecheck_report::render::{render_json, write_reports};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -29,6 +30,21 @@ enum Command {
         /// Emit diagnostics as JSON, for CI consumption
         #[arg(long)]
         json: bool,
+    },
+    /// Execute a rule set and write reports (read-only; never applies fixes)
+    Run {
+        /// Path to a *.rules.toml file
+        #[arg(short, long, value_name = "FILE")]
+        rules: PathBuf,
+        /// Override [reports].output_dir
+        #[arg(long, value_name = "DIR")]
+        output_dir: Option<PathBuf>,
+        /// Override [reports].formats (repeatable: json, html)
+        #[arg(long = "format", value_name = "FORMAT")]
+        formats: Vec<String>,
+        /// Also print the JSON report to stdout
+        #[arg(long)]
+        stdout: bool,
     },
     /// List built-in probe kinds and their implementation status
     ListProbes,
@@ -54,8 +70,18 @@ fn main() {
 fn run(cli: Cli) -> Result<i32> {
     match cli.command {
         Command::Validate { rules, json } => validate_command(&rules, json),
+        Command::Run {
+            rules,
+            output_dir,
+            formats,
+            stdout,
+        } => run_command(&rules, output_dir.as_deref(), &formats, stdout),
         Command::ListProbes => {
-            println!("probe kinds (M0: registry metadata only)");
+            let implemented = probe_descriptors()
+                .iter()
+                .filter(|probe| probe.implemented)
+                .count();
+            println!("probe kinds (M1: {implemented} implemented)");
             for probe in probe_descriptors() {
                 let status = if probe.implemented {
                     "implemented"
@@ -89,6 +115,61 @@ fn run(cli: Cli) -> Result<i32> {
                 Ok(2)
             }
         },
+    }
+}
+
+fn run_command(
+    path: &Path,
+    output_dir: Option<&Path>,
+    overrides: &[String],
+    to_stdout: bool,
+) -> Result<i32> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("cannot read rule set `{}`", path.display()))?;
+    let rules = RuleSet::from_toml(&text).context("invalid rule set")?;
+    let validation = validate(&rules);
+    if !validation.is_ok() {
+        // Reuse the existing printer so all diagnostics are shown in one pass.
+        return validate_command(path, false);
+    }
+
+    let report = wirecheck_core::runner::run(&rules, &BuiltinProbes);
+    let formats: Vec<String> = if overrides.is_empty() {
+        rules.reports.formats.clone()
+    } else {
+        overrides.to_vec()
+    };
+    let directory = output_dir
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(&rules.reports.output_dir));
+    let written = write_reports(&report, &rules.redact, &formats, &directory)?;
+
+    if to_stdout {
+        println!("{}", render_json(&report, &rules.redact)?);
+    }
+    println!("rule set : {}", report.rule_set);
+    println!("clock    : {}", report.generated_at);
+    for finding in &report.findings {
+        println!(
+            "[{}] {}: {}",
+            outcome_label(finding.outcome),
+            finding.probe_id,
+            finding.message
+        );
+    }
+    for file in &written {
+        println!("report   : {}", file.display());
+    }
+    Ok(report.exit_code())
+}
+
+fn outcome_label(outcome: Outcome) -> &'static str {
+    match outcome {
+        Outcome::Pass => "pass",
+        Outcome::Fail => "fail",
+        Outcome::Warn => "warn",
+        Outcome::Skipped => "skipped",
+        Outcome::Error => "error",
     }
 }
 

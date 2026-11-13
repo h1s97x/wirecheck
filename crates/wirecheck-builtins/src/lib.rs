@@ -2,12 +2,16 @@
 // Copyright (c) 2026 h1s97x
 
 //! Registry metadata for the closed set of probe kinds and remediation
-//! actions. M0 ships metadata only; probe implementations arrive in M1.
+//! actions. M1 implements dns / http / icmp / tcp; the other kinds stay
+//! planned.
 //!
 //! The important property is that this registry is compiled in. A rule set can
 //! only reference an ID that exists here, so an untrusted rule set can never
 //! introduce a new behaviour or name an executable.
 
+pub mod probes;
+
+pub use probes::BuiltinProbes;
 use wirecheck_core::{ActionKind, ACTION_IDS, PROBE_KINDS};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +37,7 @@ pub fn probe_descriptors() -> Vec<ProbeDescriptor> {
         .map(|id| ProbeDescriptor {
             id,
             summary: probe_summary(id),
-            implemented: false,
+            implemented: matches!(id, "dns" | "http" | "icmp" | "tcp"),
             requires_elevation: matches!(id, "interface" | "traceroute"),
         })
         .collect()
@@ -57,7 +61,9 @@ pub fn is_known_action(id: &str) -> bool {
 }
 
 pub fn find_action(id: &str) -> Option<ActionDescriptor> {
-    action_descriptors().into_iter().find(|action| action.id == id)
+    action_descriptors()
+        .into_iter()
+        .find(|action| action.id == id)
 }
 
 fn probe_summary(id: &str) -> &'static str {
@@ -109,7 +115,13 @@ mod tests {
     }
 
     #[test]
-    fn m0_has_no_probe_implementation() {
-        assert!(probe_descriptors().iter().all(|probe| !probe.implemented));
+    fn m1_implements_four_probe_kinds() {
+        let implemented: Vec<&str> = probe_descriptors()
+            .iter()
+            .filter(|probe| probe.implemented)
+            .map(|probe| probe.id)
+            .collect();
+        assert_eq!(implemented, vec!["dns", "http", "icmp", "tcp"]);
+        assert!(probe_descriptors().iter().any(|probe| !probe.implemented));
     }
 }

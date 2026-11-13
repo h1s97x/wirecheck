@@ -1,6 +1,7 @@
 # wirecheck — Design Specification
 
-- Status: M0 (schema + static validation), 2026-11-13
+- Status: M1 (probes, concurrent runner, JSON/HTML reports), 2026-11-14;
+  M0 (schema + static validation) dated 2026-11-13
 - License: MIT, single copyright holder
 - Document purpose: normative description of the design, and a dated record of
   independent authorship.
@@ -168,3 +169,21 @@ Dated design decisions:
   replaces it with explicit sensitivity tags in the schema.
 - `ProbeDescriptor.implemented` is `false` for every probe kind in M0; the
   registry is metadata only.
+
+## 11. M1 implementation notes (2026-11-14)
+
+- Implemented probe kinds: `dns`, `http`, `icmp`, `tcp`. The other four remain
+  planned and report an explicit error when run.
+- Concurrency uses standard-library scoped threads with bounded fan-out per
+  dependency level. `ProbeExecutor` is synchronous rather than async, to avoid
+  adding a runtime dependency; observation and judgement remain separate.
+- HTTP is plaintext only. An `https` URL is rejected with an explicit error
+  until a TLS stack is added.
+- ICMP starts at the system `ping` fallback and degrades to a TCP-connect
+  estimate. Native raw sockets need platform-specific code. The step actually
+  used is always recorded in `Finding.method`; degradation is never silent.
+- `Report.generated_at` is now a real UTC RFC3339 clock.
+- Variable substitution was brought forward from M2. There is still no
+  expression evaluation and no command execution.
+- SARIF, plan/apply/rollback and rule-set signing remain M2/M3. M1 is still
+  read-only: no `apply` path and no remediation execution.

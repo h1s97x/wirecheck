@@ -4,6 +4,8 @@
 //! Redaction lives in the report layer, not in the runner: local debugging
 //! keeps full values while exported reports do not.
 
+pub mod render;
+
 use sha2::{Digest, Sha256};
 use std::fmt::Write;
 use wirecheck_core::{Evidence, RedactPolicy, Redaction};

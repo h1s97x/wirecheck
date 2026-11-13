@@ -7,7 +7,9 @@
 //! implementation, network client or OS-specific code.
 
 pub mod model;
+pub mod observation;
 pub mod rules;
+pub mod runner;
 pub mod validate;
 
 #[cfg(test)]
@@ -16,9 +18,10 @@ mod tests;
 pub use model::{
     Evidence, Finding, Outcome, ProbeMethod, Redaction, Report, REPORT_SCHEMA_VERSION,
 };
+pub use observation::{evaluate_expect, Observation};
 pub use rules::{
     parse_duration_str, ActionKind, Defaults, ProbeSpec, RedactPolicy, RemediationSpec,
-    ReportPolicy, Risk, RollbackSpec, RuleError, RuleSet, ACTION_IDS, PROBE_KINDS,
-    SCHEMA_VERSION,
+    ReportPolicy, Risk, RollbackSpec, RuleError, RuleSet, ACTION_IDS, PROBE_KINDS, SCHEMA_VERSION,
 };
+pub use runner::{now_rfc3339, substitute_text, topo_layers, ProbeExecutor, RunContext};
 pub use validate::{validate, Diagnostic, Severity, ValidationReport};

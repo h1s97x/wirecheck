@@ -39,6 +39,11 @@ jobs:
         run: |
           cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml
           cargo run -p wirecheck-cli -- validate --rules rules/ci.rules.toml
+          cargo run -p wirecheck-cli -- validate --rules rules/offline.rules.toml
+          cargo run -p wirecheck-cli -- list-probes
+
+      - name: Smoke test - offline run writes JSON + HTML reports
+        run: cargo run -p wirecheck-cli -- run --rules rules/offline.rules.toml --output-dir ./reports --format json --format html
 
   licenses:
     name: dependency licenses

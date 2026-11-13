@@ -108,7 +108,11 @@ pub fn parse_duration_str(raw: &str) -> Result<Duration, String> {
         "s" => 1_000,
         "m" => 60_000,
         "h" => 3_600_000,
-        other => return Err(format!("unsupported duration unit `{other}` (use ms/s/m/h)")),
+        other => {
+            return Err(format!(
+                "unsupported duration unit `{other}` (use ms/s/m/h)"
+            ))
+        }
     };
     amount
         .checked_mul(multiplier)

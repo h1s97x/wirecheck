@@ -61,12 +61,7 @@ impl ValidationReport {
     }
 }
 
-fn err(
-    out: &mut Vec<Diagnostic>,
-    code: &str,
-    path: impl Into<String>,
-    message: impl Into<String>,
-) {
+fn err(out: &mut Vec<Diagnostic>, code: &str, path: impl Into<String>, message: impl Into<String>) {
     out.push(Diagnostic {
         severity: Severity::Error,
         code: code.to_string(),
@@ -331,10 +326,8 @@ fn collect_var_refs(value: &toml::Value, out: &mut Vec<String>) {
 
 /// Kahn's algorithm over the `depends_on` graph.
 fn has_cycle(probes: &[ProbeSpec]) -> bool {
-    let mut indegree: BTreeMap<String, usize> = probes
-        .iter()
-        .map(|probe| (probe.id.clone(), 0))
-        .collect();
+    let mut indegree: BTreeMap<String, usize> =
+        probes.iter().map(|probe| (probe.id.clone(), 0)).collect();
     let mut edges: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for probe in probes {

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 h1s97x
+#
+# Offline smoke rule set for CI: no public network access. It verifies the
+# runner, exit codes and both report formats on every platform.
+
+version = 1
+name = "offline-smoke"
+description = "Checks a closed loopback port; never reaches the public network."
+
+[defaults]
+timeout = "500ms"
+retries = 0
+concurrency = 2
+
+[reports]
+formats = ["json", "html"]
+output_dir = "./reports"
+
+[[probes]]
+id = "loopback_closed"
+type = "tcp"
+expect = { status = "refused" }
+
+[probes.with]
+host = "127.0.0.1"
+port = 1

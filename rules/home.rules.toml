@@ -50,8 +50,9 @@ id = "portal_health"
 type = "http"
 expect = { status = 200, body_not_contains = "unavailable" }
 
+# M1's HTTP probe is plaintext-only; https needs a TLS stack (see SPEC.md §11).
 [probes.with]
-url = "https://example.com/health"
+url = "http://example.com/health"
 method = "GET"
 
 [[probes]]

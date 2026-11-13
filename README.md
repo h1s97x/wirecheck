@@ -7,9 +7,9 @@ what to observe, what counts as a failure, and which remediation to suggest. The
 output is a structured report you can read in a terminal, feed to CI, or attach
 to a support request without leaking your local network details.
 
-> Status: **M0 — schema and static validation only.** No network calls and no
-> remediation execution are performed yet. See `SPEC.md` for the full design and
-> the roadmap.
+> Status: **M1 — read-only probes, a concurrent runner and JSON/HTML reports.**
+> `validate` stays offline; `run` performs network observations but never
+> applies a remediation. See `SPEC.md` for the design and the roadmap.
 
 ## Why
 
@@ -33,12 +33,22 @@ cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml
 # machine-readable diagnostics for CI
 cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml --json
 
+# execute a rule set (read-only) and write reports to ./reports
+cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --stdout
+
 wirecheck list-probes
 wirecheck explain proxy.set
 ```
 
-`validate` exits `0` when the rule set is valid and `2` when it is not. It
-reports **all** problems in one pass rather than stopping at the first one.
+`validate` exits `0` when the rule set is valid and `2` when it is not; it
+reports **all** problems in one pass. `run` exits `0` (all clear), `1` (a
+`fail`/`error` finding) or `2` (invalid rule set or configuration error).
+Reports are written to `[reports].output_dir` (`--output-dir` overrides it);
+`--format json|html` overrides the formats, `--stdout` also prints the JSON.
+
+M1 is still read-only: there is no `apply` path. The HTTP probe is plaintext
+only, ICMP falls back to system `ping` and then a TCP-connect estimate, and
+SARIF / remediation plans remain M2. See `SPEC.md` §11 for the full list.
 
 ## A rule set
 
