@@ -1,7 +1,8 @@
 # wirecheck — Design Specification
 
-- Status: M1 (probes, concurrent runner, JSON/HTML reports), 2026-11-14;
-  M0 (schema + static validation) dated 2026-11-13
+- Status: M2 (SARIF, dry-run plans, audited apply/rollback), 2026-11-14;
+  M1 (probes, concurrent runner, JSON/HTML reports) and M0 (schema + static
+  validation) both dated 2026-11-13/14
 - License: MIT, single copyright holder
 - Document purpose: normative description of the design, and a dated record of
   independent authorship.
@@ -187,3 +188,19 @@ Dated design decisions:
   expression evaluation and no command execution.
 - SARIF, plan/apply/rollback and rule-set signing remain M2/M3. M1 is still
   read-only: no `apply` path and no remediation execution.
+
+## 12. M2 implementation notes (2026-11-14)
+
+- SARIF 2.1.0 is rendered in the report layer with the same redaction policy
+  as JSON and HTML.
+- `run` builds a dry-run plan from unhealthy findings that reference a
+  registered remediation. `--apply` requires `--yes`; a remediation with
+  `needs_confirm = true` additionally requires an interactive TTY.
+- `apply_plan` writes a complete `AuditRecord`: the plan, every result and
+  every rollback result. Any non-applied action triggers rollback of all
+  actions that did succeed.
+- No host-mutating adapter ships in M2. `DisabledExecutor` refuses every
+  action and records the refusal; `RecordingExecutor` exercises the full
+  apply/rollback/audit path in tests. Supplying a platform-specific
+  `ActionExecutor` is the remaining step before real remediation.
+- Elevation, rule-set signing / `--trust` and the full probe set remain M3.

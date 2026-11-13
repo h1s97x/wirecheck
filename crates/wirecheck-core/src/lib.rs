@@ -8,6 +8,7 @@
 
 pub mod model;
 pub mod observation;
+pub mod plan;
 pub mod rules;
 pub mod runner;
 pub mod validate;

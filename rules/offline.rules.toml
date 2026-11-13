@@ -14,7 +14,7 @@ retries = 0
 concurrency = 2
 
 [reports]
-formats = ["json", "html"]
+formats = ["json", "html", "sarif"]
 output_dir = "./reports"
 
 [[probes]]

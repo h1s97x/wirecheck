@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 h1s97x
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use std::fs;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
-use wirecheck_builtins::{action_descriptors, find_action, probe_descriptors, BuiltinProbes};
+use wirecheck_builtins::{
+    action_descriptors, find_action, probe_descriptors, BuiltinProbes, DisabledExecutor,
+};
+use wirecheck_core::plan::{apply_plan, build_plan};
 use wirecheck_core::{validate, Outcome, RuleSet, Severity};
 use wirecheck_report::render::{render_json, write_reports};
 
@@ -31,7 +36,7 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Execute a rule set and write reports (read-only; never applies fixes)
+    /// Execute a rule set and write reports (read-only unless --apply is given)
     Run {
         /// Path to a *.rules.toml file
         #[arg(short, long, value_name = "FILE")]
@@ -39,12 +44,18 @@ enum Command {
         /// Override [reports].output_dir
         #[arg(long, value_name = "DIR")]
         output_dir: Option<PathBuf>,
-        /// Override [reports].formats (repeatable: json, html)
+        /// Override [reports].formats (repeatable: json, html, sarif)
         #[arg(long = "format", value_name = "FORMAT")]
         formats: Vec<String>,
         /// Also print the JSON report to stdout
         #[arg(long)]
         stdout: bool,
+        /// Apply the remediation plan (requires --yes)
+        #[arg(long)]
+        apply: bool,
+        /// Confirm --apply non-interactively
+        #[arg(long)]
+        yes: bool,
     },
     /// List built-in probe kinds and their implementation status
     ListProbes,
@@ -75,7 +86,9 @@ fn run(cli: Cli) -> Result<i32> {
             output_dir,
             formats,
             stdout,
-        } => run_command(&rules, output_dir.as_deref(), &formats, stdout),
+            apply,
+            yes,
+        } => run_command(&rules, output_dir.as_deref(), &formats, stdout, apply, yes),
         Command::ListProbes => {
             let implemented = probe_descriptors()
                 .iter()
@@ -123,8 +136,10 @@ fn run_command(
     output_dir: Option<&Path>,
     overrides: &[String],
     to_stdout: bool,
+    apply: bool,
+    yes: bool,
 ) -> Result<i32> {
-    let text = std::fs::read_to_string(path)
+    let text = fs::read_to_string(path)
         .with_context(|| format!("cannot read rule set `{}`", path.display()))?;
     let rules = RuleSet::from_toml(&text).context("invalid rule set")?;
     let validation = validate(&rules);
@@ -160,6 +175,42 @@ fn run_command(
     for file in &written {
         println!("report   : {}", file.display());
     }
+
+    let plan = build_plan(&rules, &report);
+    if apply {
+        if !yes {
+            bail!("--apply requires --yes; plans are dry-run by default");
+        }
+        if plan.requires_confirm() && !std::io::stdin().is_terminal() {
+            bail!("a remediation has needs_confirm = true; an interactive TTY is required");
+        }
+        fs::create_dir_all(&directory)?;
+        // M2 ships no host-mutating adapter. Every action is refused and the
+        // refusal is recorded, so an apply attempt is still fully auditable.
+        let audit = apply_plan(&plan, &DisabledExecutor);
+        let audit_path = directory.join("audit.json");
+        fs::write(&audit_path, serde_json::to_string_pretty(&audit)?)?;
+        for result in &audit.results {
+            println!(
+                "[{}] {}: {}",
+                result.status, result.remediation_id, result.detail
+            );
+        }
+        println!("audit    : {}", audit_path.display());
+    } else if plan.actions.is_empty() {
+        println!("plan     : no remediation suggested (dry-run)");
+    } else {
+        println!(
+            "plan     : {} action(s), dry-run, nothing applied",
+            plan.actions.len()
+        );
+        for action in &plan.actions {
+            println!(
+                "  [{}] {}: {} needs_confirm={}",
+                action.risk, action.remediation_id, action.action, action.needs_confirm
+            );
+        }
+    }
     Ok(report.exit_code())
 }
 
@@ -174,7 +225,7 @@ fn outcome_label(outcome: Outcome) -> &'static str {
 }
 
 fn validate_command(path: &Path, json: bool) -> Result<i32> {
-    let text = std::fs::read_to_string(path)
+    let text = fs::read_to_string(path)
         .with_context(|| format!("cannot read rule set `{}`", path.display()))?;
     let rules = RuleSet::from_toml(&text).context("invalid rule set")?;
     let report = validate(&rules);

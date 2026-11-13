@@ -7,9 +7,10 @@ what to observe, what counts as a failure, and which remediation to suggest. The
 output is a structured report you can read in a terminal, feed to CI, or attach
 to a support request without leaking your local network details.
 
-> Status: **M1 — read-only probes, a concurrent runner and JSON/HTML reports.**
-> `validate` stays offline; `run` performs network observations but never
-> applies a remediation. See `SPEC.md` for the design and the roadmap.
+> Status: **M2 — SARIF reports, dry-run plans and audited apply/rollback.**
+> `validate` stays offline; `run` performs network observations. Remediation
+> plans are dry-run by default and no host-mutating adapter ships yet. See
+> `SPEC.md` for the design and the roadmap.
 
 ## Why
 
@@ -33,8 +34,14 @@ cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml
 # machine-readable diagnostics for CI
 cargo run -p wirecheck-cli -- validate --rules rules/home.rules.toml --json
 
-# execute a rule set (read-only) and write reports to ./reports
+# execute a rule set; prints a dry-run plan, writes reports to ./reports
 cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --stdout
+
+# SARIF 2.1.0 for code scanning
+cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --format sarif
+
+# explicit apply: writes audit.json (no host changes without an adapter)
+cargo run -p wirecheck-cli -- run --rules rules/home.rules.toml --apply --yes
 
 wirecheck list-probes
 wirecheck explain proxy.set
@@ -44,11 +51,16 @@ wirecheck explain proxy.set
 reports **all** problems in one pass. `run` exits `0` (all clear), `1` (a
 `fail`/`error` finding) or `2` (invalid rule set or configuration error).
 Reports are written to `[reports].output_dir` (`--output-dir` overrides it);
-`--format json|html` overrides the formats, `--stdout` also prints the JSON.
+`--format json|html|sarif` overrides the formats, `--stdout` also prints JSON.
 
-M1 is still read-only: there is no `apply` path. The HTTP probe is plaintext
-only, ICMP falls back to system `ping` and then a TCP-connect estimate, and
-SARIF / remediation plans remain M2. See `SPEC.md` §11 for the full list.
+M2 is safe by default: `run` prints a dry-run plan. `--apply --yes` walks the
+plan and writes `audit.json` (plan, results and rollback results), but the
+shipped `DisabledExecutor` refuses every host change — a platform adapter must
+be supplied explicitly. Actions with `needs_confirm = true` additionally
+require an interactive TTY.
+
+M1 limitations that still apply: HTTP is plaintext only and ICMP uses the
+system `ping` / TCP degradation chain. See `SPEC.md` §11–§12.
 
 ## A rule set
 

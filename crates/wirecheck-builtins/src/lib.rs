@@ -9,8 +9,10 @@
 //! only reference an ID that exists here, so an untrusted rule set can never
 //! introduce a new behaviour or name an executable.
 
+pub mod actions;
 pub mod probes;
 
+pub use actions::{DisabledExecutor, RecordingExecutor};
 pub use probes::BuiltinProbes;
 use wirecheck_core::{ActionKind, ACTION_IDS, PROBE_KINDS};
 

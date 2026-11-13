@@ -82,8 +82,41 @@ fn escape(text: &str) -> String {
     output
 }
 
-/// Write the requested formats. SARIF is an M2 deliverable and is ignored in
-/// M1 rather than producing a misleading empty file.
+/// SARIF 2.1.0 for code-scanning surfaces. Evidence is redacted here too.
+pub fn render_sarif(report: &Report, policy: &RedactPolicy) -> Result<String, serde_json::Error> {
+    let mut results = Vec::new();
+    for finding in &report.findings {
+        let evidence = redact_evidence(policy, &finding.evidence);
+        results.push(serde_json::json!({
+            "ruleId": finding.probe_id,
+            "level": sarif_level(finding.outcome),
+            "message": { "text": finding.message },
+            "properties": {
+                "outcome": format!("{:?}", finding.outcome).to_ascii_lowercase(),
+                "evidence": evidence.fields,
+            }
+        }));
+    }
+    serde_json::to_string_pretty(&serde_json::json!({
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{
+            "tool": { "driver": { "name": "wirecheck", "version": "0.1.0" } },
+            "results": results,
+        }]
+    }))
+}
+
+fn sarif_level(outcome: wirecheck_core::Outcome) -> &'static str {
+    match outcome {
+        wirecheck_core::Outcome::Fail | wirecheck_core::Outcome::Error => "error",
+        wirecheck_core::Outcome::Warn => "warning",
+        wirecheck_core::Outcome::Pass | wirecheck_core::Outcome::Skipped => "none",
+    }
+}
+
+/// Write the requested formats. Unknown formats are ignored rather than
+/// producing a misleading empty file.
 pub fn write_reports(
     report: &Report,
     policy: &RedactPolicy,
@@ -100,6 +133,11 @@ pub fn write_reports(
                     .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?,
             ),
             "html" => ("report.html", render_html(report, policy)),
+            "sarif" => (
+                "report.sarif",
+                render_sarif(report, policy)
+                    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?,
+            ),
             _ => continue,
         };
         let path = output_dir.join(filename);
@@ -153,18 +191,29 @@ mod tests {
     }
 
     #[test]
-    fn sarif_is_not_written_in_m1() {
+    fn sarif_is_valid_and_redacted() {
+        let text = render_sarif(&sample(), &RedactPolicy::default()).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(value["version"], "2.1.0");
+        assert_eq!(value["runs"][0]["results"][0]["level"], "error");
+        assert_eq!(value["runs"][0]["results"][0]["ruleId"], "p");
+        assert!(text.contains("192.0.x.x"));
+        assert!(!text.contains("192.0.2.10"));
+    }
+
+    #[test]
+    fn all_m2_formats_are_written() {
         let directory =
-            std::env::temp_dir().join(format!("wirecheck-render-{}-{}", std::process::id(), "m1"));
+            std::env::temp_dir().join(format!("wirecheck-render-{}-{}", std::process::id(), "m2"));
         let written = write_reports(
             &sample(),
             &RedactPolicy::default(),
-            &["sarif".to_string(), "json".to_string()],
+            &["sarif".to_string(), "json".to_string(), "html".to_string()],
             &directory,
         )
         .unwrap();
-        assert_eq!(written.len(), 1);
-        assert!(written[0].ends_with("report.json"));
+        assert_eq!(written.len(), 3);
+        assert!(written.iter().any(|path| path.ends_with("report.sarif")));
         let _ = fs::remove_dir_all(&directory);
     }
 }
