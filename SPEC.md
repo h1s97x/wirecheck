@@ -228,3 +228,16 @@ Dated design decisions:
   default, so M3 still ships no host-mutating adapter.
 - Remaining v1.0 work: frozen report schema, semver commitment, crates.io
   release and a real signing scheme if publisher verification is required.
+
+## 14. Report UI note (2026-11-14)
+
+- The HTML report was upgraded from a static table to a single-file
+  interactive dashboard: summary cards, SVG pass-rate ring, outcome filters,
+  free-text search, expandable evidence, dark-mode support and accessible
+  labels.
+- It remains a **report artifact**, not a product front end: inline CSS/JS
+  only, no external resources, no network requests, evidence redacted at
+  render time. §1 still excludes a GUI / tray application.
+- If a real front end is required, that is a scope change: either a separate
+  web application consuming `report.json`, or a desktop UI. Both need a new
+  design decision before implementation.

@@ -58,10 +58,16 @@ SHA-256 trust store (`trust` / `run --trust`) and a central elevation check.
 The trust store is an allow-list of reviewed fingerprints, not an asymmetric
 signature scheme; `.wirecheck/` is gitignored.
 
+The HTML output is a self-contained interactive dashboard: summary cards,
+pass-rate ring, outcome filters, search, expandable redacted evidence and
+dark mode. All CSS/JS is inline and it makes no network requests. It is a
+**report artifact for attaching to a ticket**, not the product front end —
+a GUI is explicitly out of scope in §1 of `SPEC.md`.
+
 Safety defaults still hold: `run` prints a dry-run plan; `--apply --yes`
 writes `audit.json` but `DisabledExecutor` refuses every host change, and
 privileged actions are refused outright. HTTP is plaintext only and ICMP /
-traceroute use system command fallbacks. See `SPEC.md` §11–§13.
+traceroute use system command fallbacks. See `SPEC.md` §11–§14.
 
 ## A rule set
 
