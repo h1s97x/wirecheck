@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+
+/target/
+**/*.rs.bk
+*.pdb
+.DS_Store
+/reports/
+
+# Cargo.lock is intentionally tracked: this workspace ships a binary.

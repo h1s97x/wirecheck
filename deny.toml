@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 h1s97x
+#
+# Dependency policy: permissive licenses only. Copyleft and unknown-license
+# crates fail CI. Run: cargo deny check licenses bans sources
+
+[graph]
+all-features = true
+
+[licenses]
+version = 2
+confidence-threshold = 0.8
+# Deliberately narrow: a new dependency with a different license fails CI
+# instead of being silently accepted. Extend this list only after review.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+deny = [{ name = "openssl-src" }]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 h1s97x
+#
+# Example rule set for a CI runner checking its external dependencies.
+
+version = 1
+name = "ci-egress"
+description = "Verify that a build runner can reach its external dependencies."
+
+[defaults]
+timeout = "2s"
+retries = 2
+concurrency = 8
+
+[redact]
+ip = "mask"
+user = "hash"
+mac = "mask"
+
+[vars]
+resolver = "192.0.2.53"
+
+[reports]
+formats = ["json", "sarif"]
+output_dir = "./reports"
+
+[[probes]]
+id = "registry_dns"
+type = "dns"
+expect = { status = "ok", min_answers = 1 }
+
+[probes.with]
+server = "{{ vars.resolver }}"
+query = "example.com"
+record = "A"
+
+[[probes]]
+id = "registry_https"
+type = "http"
+depends_on = ["registry_dns"]
+expect = { status = 200 }
+
+[probes.with]
+url = "https://example.com/health"
+method = "GET"
+
+[[probes]]
+id = "egress_tcp"
+type = "tcp"
+depends_on = ["registry_dns"]
+expect = { connected = true }
+
+[probes.with]
+host = "example.com"
+port = 443

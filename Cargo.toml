@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 h1s97x
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/wirecheck-core",
+    "crates/wirecheck-builtins",
+    "crates/wirecheck-report",
+    "crates/wirecheck-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+authors = ["h1s97x <yang1297656998@outlook.com>"]
+
+[workspace.dependencies]
+# Explicit versions are required by crates.io publishing and by cargo-deny's
+# wildcard policy for public crates.
+wirecheck-core = { path = "crates/wirecheck-core", version = "0.1.0" }
+wirecheck-builtins = { path = "crates/wirecheck-builtins", version = "0.1.0" }
+wirecheck-report = { path = "crates/wirecheck-report", version = "0.1.0" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+thiserror = "2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+sha2 = "0.10"

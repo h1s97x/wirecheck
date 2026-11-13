@@ -1,0 +1,25 @@
+wirecheck
+Copyright (c) 2026 h1s97x
+SPDX-License-Identifier: MIT
+Maintainer: h1s97x <yang1297656998@outlook.com>
+
+This project is licensed under the MIT License; see the LICENSE file for the
+full text. It is an independently designed implementation and is not affiliated
+with, derived from, or endorsed by any other project that happens to use a
+similar name.
+
+Vendored third-party source code: none.
+
+Third-party Rust crates are linked at build time and are not distributed as
+part of this source tree. Their licenses are verified automatically in CI with
+`cargo deny check licenses bans sources` (see deny.toml). At the time of this
+notice the direct dependencies are:
+
+  serde, serde_json, toml, thiserror, anyhow, clap, sha2
+
+The authoritative license list for a given build is the combination of
+Cargo.lock and the output of `cargo deny check`. License texts of dependencies
+are shipped by their respective crates.
+
+Every source file in this repository carries an SPDX-License-Identifier: MIT
+header. Releases include this NOTICE together with LICENSE.
